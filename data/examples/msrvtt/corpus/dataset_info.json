@@ -1,0 +1,23 @@
+{
+  "citation": "",
+  "description": "",
+  "features": {
+    "corpus_id": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "video_id": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "video_paths": {
+      "feature": {
+        "dtype": "string",
+        "_type": "Value"
+      },
+      "_type": "List"
+    }
+  },
+  "homepage": "",
+  "license": ""
+}

@@ -1,0 +1,19 @@
+{
+  "citation": "",
+  "description": "",
+  "features": {
+    "query_id": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "corpus_ids": {
+      "feature": {
+        "dtype": "string",
+        "_type": "Value"
+      },
+      "_type": "List"
+    }
+  },
+  "homepage": "",
+  "license": ""
+}
