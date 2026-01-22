@@ -216,12 +216,138 @@ python launcher.py launch --model ./models/Qwen3-VL-Embedding-2B
 
 ## Architecture
 
-The multimodal file launcher consists of several components:
+The multimodal file launcher consists of several integrated components working together to provide semantic file search:
 
-1. **File Indexer** (`src/launcher/indexer.py`): Scans directories and generates embeddings
-2. **Search Engine** (`src/launcher/search_engine.py`): Performs semantic similarity search
-3. **UI Layer** (`src/launcher/ui.py`): Gradio interface for user interaction
-4. **Keyboard Handler** (`src/launcher/keyboard_handler.py`): Global keyboard shortcut support
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         User Interface Layer                         │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  ┌──────────────────┐        ┌──────────────────────────────────┐  │
+│  │  CLI (launcher.py)│        │   Gradio UI (ui.py)              │  │
+│  │  • index          │───────▶│   • Text Search Tab              │  │
+│  │  • launch         │        │   • Image Search Tab             │  │
+│  │  • info/clear     │        │   • Results Display              │  │
+│  └──────────────────┘        └──────────────────────────────────┘  │
+│           │                             │                            │
+│           │                             │                            │
+│           │    ┌────────────────────────┘                            │
+│           │    │                                                     │
+└───────────┼────┼─────────────────────────────────────────────────────┘
+            │    │
+            ▼    ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      Core Application Layer                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  ┌────────────────────────────┐    ┌───────────────────────────┐   │
+│  │  File Indexer (indexer.py) │    │ Search Engine             │   │
+│  │  • Directory Scanning      │    │ (search_engine.py)        │   │
+│  │  • File Type Detection     │───▶│ • Query Processing        │   │
+│  │  • Content Extraction      │    │ • Similarity Calculation  │   │
+│  │  • Batch Processing        │    │ • Result Ranking          │   │
+│  │  • Incremental Updates     │    │ • Top-K Selection         │   │
+│  └────────────────────────────┘    └───────────────────────────┘   │
+│            │                                  ▲                      │
+│            │                                  │                      │
+│            ▼                                  │                      │
+│  ┌─────────────────────────────────────────┐ │                      │
+│  │     Local Index Storage                 │ │                      │
+│  │  • file_index.json (metadata)           │─┘                      │
+│  │  • embeddings.npy (vectors)             │                        │
+│  │  • Hash-based change detection          │                        │
+│  └─────────────────────────────────────────┘                        │
+│                                                                       │
+└───────────────────────────────┬───────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                       Embedding Layer                                │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  ┌──────────────────────────┐    ┌──────────────────────────────┐  │
+│  │  Qwen3VLEmbedder         │    │  QuantizedEmbedder           │  │
+│  │  (Full Model)            │    │  (GGUF/llama-cpp)            │  │
+│  │  • Text Embeddings       │    │  • Text-Only Embeddings      │  │
+│  │  • Image Embeddings      │    │  • 4-8x Memory Reduction     │  │
+│  │  • Video Embeddings      │    │  • CPU Optimized             │  │
+│  │  • GPU Acceleration      │    │  • Q4_K_M, Q5_K_M, Q8_0      │  │
+│  └──────────────────────────┘    └──────────────────────────────┘  │
+│            │                                  │                      │
+│            └──────────────┬───────────────────┘                      │
+│                           │                                          │
+└───────────────────────────┼──────────────────────────────────────────┘
+                            │
+                            ▼
+                   ┌─────────────────┐
+                   │  Qwen3-VL Base  │
+                   │     Models      │
+                   │  (HuggingFace)  │
+                   └─────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Optional: Keyboard Shortcuts                      │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌────────────────────────────────────────────────────────────┐    │
+│  │  KeyboardShortcutHandler (keyboard_handler.py)             │    │
+│  │  • Global Hotkey Listener (Ctrl+Alt+F)                     │    │
+│  │  • UI Launcher with Thread Safety                          │    │
+│  │  • Graceful Fallback (no X server)                         │    │
+│  └────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Component Descriptions
+
+**1. File Indexer** (`src/launcher/indexer.py`)
+   - Scans directories recursively for supported file types
+   - Extracts content from text files and metadata from images
+   - Generates embeddings via the embedding layer
+   - Stores results in local JSON + NumPy format
+   - Uses hash-based change detection for incremental updates
+
+**2. Search Engine** (`src/launcher/search_engine.py`)
+   - Processes text or image queries through embedder
+   - Computes cosine similarity between query and indexed embeddings
+   - Ranks results by similarity score
+   - Returns top-K most relevant files with metadata
+
+**3. UI Layer** (`src/launcher/ui.py`)
+   - Gradio-based web interface with dual tabs
+   - Text search: natural language query input
+   - Image search: reference image upload
+   - Results display with previews and similarity scores
+
+**4. Keyboard Handler** (`src/launcher/keyboard_handler.py`)
+   - Optional global keyboard shortcut support
+   - Thread-safe UI launching with mutex protection
+   - Gracefully handles environments without X server
+
+**5. Embedding Layer**
+   - **Qwen3VLEmbedder**: Full-precision multimodal model
+   - **QuantizedEmbedder**: Memory-efficient GGUF wrapper
+   - Auto-selection based on model file format
+
+### Data Flow
+
+1. **Indexing Flow**:
+   ```
+   User Files → File Indexer → Embedder → Local Index
+   ```
+
+2. **Search Flow**:
+   ```
+   User Query → Search Engine → Embedder → Similarity Calc → Ranked Results
+                                             ↓
+                                       Local Index
+   ```
+
+3. **UI Flow**:
+   ```
+   Browser ↔ Gradio UI ↔ Search Engine ↔ Embedder
+                              ↓
+                         Local Index
+   ```
 
 ## Performance Tips
 

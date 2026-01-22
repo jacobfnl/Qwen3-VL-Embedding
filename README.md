@@ -337,6 +337,31 @@ Run the included demo to see it in action:
 python demo_launcher.py
 ```
 
+### Architecture Overview
+
+```
+┌─────────────┐      ┌──────────────┐      ┌─────────────────┐
+│   CLI/UI    │─────▶│ File Indexer │─────▶│ Local Index     │
+│  launcher.py│      │  indexer.py  │      │ (JSON + NumPy)  │
+└─────────────┘      └──────────────┘      └─────────────────┘
+      │                     │                        │
+      │                     ▼                        │
+      │              ┌──────────────┐                │
+      └─────────────▶│  Embedder    │                │
+                     │ (Full/GGUF)  │                │
+                     └──────────────┘                │
+                            │                        │
+      ┌─────────────┐       │                        │
+      │  Gradio UI  │       │                        │
+      │   ui.py     │       ▼                        ▼
+      └─────────────┘  ┌────────────────┐   ┌───────────────┐
+            │          │ Search Engine  │◀──│ Cosine Sim    │
+            └─────────▶│search_engine.py│   │  Ranking      │
+                       └────────────────┘   └───────────────┘
+```
+
+**Flow**: Index files → Generate embeddings → Store locally → Query → Rank by similarity → Display results
+
 ### Full Documentation
 
 See [LAUNCHER_README.md](LAUNCHER_README.md) for:
