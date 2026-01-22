@@ -55,33 +55,105 @@ def parse_args():
     
     # Model arguments (common)
     parser.add_argument('--model', type=str, default='Qwen/Qwen3-VL-Embedding-2B',
-                       help='Model name or path')
+                       help='Model name, path, or GGUF file path')
     parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu',
                        help='Device to run on (cuda/cpu)')
+    parser.add_argument('--quantized', action='store_true',
+                       help='Use quantized GGUF model (auto-detected for .gguf files)')
     
     return parser.parse_args()
 
 
-def load_embedder(model_name_or_path: str, device: str):
-    """Load the Qwen3VL embedder model."""
-    logger.info(f"Loading embedder model: {model_name_or_path}")
+def load_embedder(model_name_or_path: str, device: str, use_quantized: bool = False):
+    """
+    Load the embedder model (full or quantized).
     
-    try:
-        embedder = Qwen3VLEmbedder(
-            model_name_or_path=model_name_or_path,
-            torch_dtype=torch.bfloat16 if device == 'cuda' else torch.float32,
+    Parameters
+    ----------
+    model_name_or_path : str
+        Model name, path, or GGUF file path for quantized models.
+    device : str
+        Device to run on ('cuda' or 'cpu').
+    use_quantized : bool, optional
+        Whether to use quantized GGUF model (default: False).
+    
+    Returns
+    -------
+    embedder : Qwen3VLEmbedder or QuantizedEmbedder
+        Loaded embedder instance.
+    
+    Examples
+    --------
+    Load full-precision model:
+    
+    >>> embedder = load_embedder("Qwen/Qwen3-VL-Embedding-2B", "cuda", False)
+    
+    Load quantized GGUF model:
+    
+    >>> embedder = load_embedder("./models/model.gguf", "cpu", True)
+    
+    How to Use
+    ----------
+    This function automatically detects GGUF files and loads appropriate embedder:
+    
+    .. code-block:: python
+    
+        # For GGUF quantized models
+        embedder = load_embedder(
+            "./models/Qwen3-VL-Embedding-2B-Q4_K_M.gguf",
+            device="cpu",
+            use_quantized=True
         )
-        logger.info("Model loaded successfully")
-        return embedder
-    except Exception as e:
-        logger.error(f"Error loading model: {e}")
-        logger.error("Please ensure the model is downloaded. See README for instructions.")
-        sys.exit(1)
+        
+        # For full-precision models
+        embedder = load_embedder(
+            "./models/Qwen3-VL-Embedding-2B",
+            device="cuda",
+            use_quantized=False
+        )
+    """
+    # Auto-detect GGUF format
+    if model_name_or_path.endswith('.gguf'):
+        use_quantized = True
+    
+    if use_quantized:
+        logger.info(f"Loading quantized GGUF model: {model_name_or_path}")
+        try:
+            from src.launcher.quantized_embedder import QuantizedEmbedder
+            
+            # Determine GPU layers based on device
+            n_gpu_layers = 35 if device == 'cuda' else 0
+            
+            embedder = QuantizedEmbedder(
+                model_path=model_name_or_path,
+                n_gpu_layers=n_gpu_layers,
+                n_ctx=8192
+            )
+            logger.info("Quantized model loaded successfully")
+            return embedder
+        except Exception as e:
+            logger.error(f"Error loading quantized model: {e}")
+            logger.error("Make sure llama-cpp-python is installed: pip install llama-cpp-python")
+            sys.exit(1)
+    else:
+        logger.info(f"Loading full-precision embedder model: {model_name_or_path}")
+        
+        try:
+            embedder = Qwen3VLEmbedder(
+                model_name_or_path=model_name_or_path,
+                torch_dtype=torch.bfloat16 if device == 'cuda' else torch.float32,
+            )
+            logger.info("Model loaded successfully")
+            return embedder
+        except Exception as e:
+            logger.error(f"Error loading model: {e}")
+            logger.error("Please ensure the model is downloaded. See README for instructions.")
+            sys.exit(1)
 
 
 def command_index(args):
     """Handle the index command."""
-    embedder = load_embedder(args.model, args.device)
+    embedder = load_embedder(args.model, args.device, args.quantized)
     indexer = FileIndexer(embedder, args.index_dir)
     
     logger.info(f"Indexing directory: {args.directory}")
@@ -91,7 +163,7 @@ def command_index(args):
 
 def command_launch(args):
     """Handle the launch command."""
-    embedder = load_embedder(args.model, args.device)
+    embedder = load_embedder(args.model, args.device, args.quantized)
     indexer = FileIndexer(embedder, args.index_dir)
     
     if not indexer.file_metadata:

@@ -1,5 +1,8 @@
 """
 Search engine module for semantic similarity search.
+
+This module provides semantic search functionality for finding files based on
+multimodal queries, using cosine similarity between query and indexed embeddings.
 """
 import numpy as np
 from typing import List, Dict, Any, Optional, Union
@@ -11,7 +14,111 @@ logger = logging.getLogger(__name__)
 
 
 class SearchEngine:
-    """Semantic search engine for finding files based on multimodal queries."""
+    """
+    Semantic search engine for finding files based on multimodal queries.
+    
+    This class provides semantic similarity search over indexed files using
+    cosine similarity between query embeddings and file embeddings. Supports
+    both text and image queries.
+    
+    Parameters
+    ----------
+    embedder : Qwen3VLEmbedder or QuantizedEmbedder
+        Embedder instance for generating query embeddings.
+    indexer : FileIndexer
+        FileIndexer instance with loaded file index.
+    
+    Attributes
+    ----------
+    embedder : object
+        The embedder instance.
+    indexer : FileIndexer
+        The file indexer with loaded index.
+    
+    Examples
+    --------
+    Text-based search:
+    
+    >>> from src.launcher.search_engine import SearchEngine
+    >>> from src.launcher.quantized_embedder import QuantizedEmbedder
+    >>> from src.launcher.indexer import FileIndexer
+    >>> 
+    >>> embedder = QuantizedEmbedder("model.gguf")
+    >>> indexer = FileIndexer(embedder)
+    >>> indexer.index_directory("/home/user/docs")
+    >>> 
+    >>> search = SearchEngine(embedder, indexer)
+    >>> results = search.search_text("machine learning code", top_k=5)
+    >>> for result in results:
+    ...     print(f"{result['name']}: {result['similarity']:.2%}")
+    
+    Image-based search:
+    
+    >>> results = search.search_image("reference.jpg", top_k=10)
+    >>> for result in results:
+    ...     print(f"{result['path']}: {result['similarity']:.2%}")
+    
+    How to Use
+    ----------
+    1. Initialize search engine with embedder and indexer:
+       
+       .. code-block:: python
+       
+           from src.launcher.search_engine import SearchEngine
+           from src.launcher.quantized_embedder import QuantizedEmbedder
+           from src.launcher.indexer import FileIndexer
+           
+           embedder = QuantizedEmbedder("model.gguf")
+           indexer = FileIndexer(embedder, index_dir=".index")
+           search = SearchEngine(embedder, indexer)
+    
+    2. Search with natural language:
+       
+       .. code-block:: python
+       
+           results = search.search_text(
+               "Python code for neural networks",
+               instruction="Find relevant code files",
+               top_k=10
+           )
+    
+    3. Process search results:
+       
+       .. code-block:: python
+       
+           for result in results:
+               print(f"File: {result['name']}")
+               print(f"Path: {result['path']}")
+               print(f"Similarity: {result['similarity']:.2%}")
+               if 'preview' in result:
+                   print(f"Preview: {result['preview']}")
+    
+    4. Search with image reference:
+       
+       .. code-block:: python
+       
+           from PIL import Image
+           
+           # Search using file path
+           results = search.search_image("/path/to/reference.jpg")
+           
+           # Or using PIL Image
+           img = Image.open("reference.jpg")
+           results = search.search_image(img, top_k=5)
+    
+    Notes
+    -----
+    - Uses cosine similarity for ranking results
+    - Supports text queries with optional instructions
+    - Supports image queries (requires non-quantized embedder)
+    - Returns results sorted by similarity (highest first)
+    - Each result includes file metadata and similarity score
+    
+    See Also
+    --------
+    FileIndexer : Index files for searching
+    QuantizedEmbedder : Memory-efficient embedder for text-only search
+    """
     
     def __init__(self, embedder, indexer):
         """

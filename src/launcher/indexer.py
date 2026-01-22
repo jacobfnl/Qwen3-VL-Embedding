@@ -1,5 +1,9 @@
 """
 File indexer module for generating and storing multimodal embeddings.
+
+This module provides functionality to index files in directories using
+Qwen3-VL embeddings, supporting both text and image files with efficient
+incremental updates and local storage.
 """
 import os
 import json
@@ -20,7 +24,110 @@ IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '
 
 
 class FileIndexer:
-    """Index files in directories using multimodal embeddings."""
+    """
+    Index files in directories using multimodal embeddings.
+    
+    This class handles scanning directories for supported files, generating
+    embeddings using Qwen3-VL models, and maintaining a persistent local index
+    with efficient incremental updates.
+    
+    Parameters
+    ----------
+    embedder : Qwen3VLEmbedder or QuantizedEmbedder
+        Embedder instance for generating embeddings.
+    index_dir : str, optional
+        Directory to store index files (default: ".file_launcher_index").
+    
+    Attributes
+    ----------
+    embedder : object
+        The embedder instance.
+    index_dir : Path
+        Path to the index directory.
+    file_metadata : list of dict
+        List of file metadata dictionaries.
+    embeddings : np.ndarray or None
+        Array of embeddings for indexed files.
+    
+    Examples
+    --------
+    Basic indexing workflow:
+    
+    >>> from src.models.qwen3_vl_embedding import Qwen3VLEmbedder
+    >>> from src.launcher.indexer import FileIndexer
+    >>> 
+    >>> # Initialize embedder and indexer
+    >>> embedder = Qwen3VLEmbedder("./models/Qwen3-VL-Embedding-2B")
+    >>> indexer = FileIndexer(embedder, index_dir=".my_index")
+    >>> 
+    >>> # Index a directory
+    >>> indexer.index_directory("/path/to/documents", recursive=True)
+    >>> 
+    >>> # Check index stats
+    >>> print(f"Indexed {len(indexer.file_metadata)} files")
+    
+    Using quantized embedder:
+    
+    >>> from src.launcher.quantized_embedder import QuantizedEmbedder
+    >>> embedder = QuantizedEmbedder("./models/gguf/model.gguf")
+    >>> indexer = FileIndexer(embedder)
+    >>> indexer.index_directory("/path/to/code", recursive=True)
+    
+    How to Use
+    ----------
+    1. Initialize with an embedder:
+       
+       .. code-block:: python
+       
+           from src.launcher.indexer import FileIndexer
+           from src.launcher.quantized_embedder import QuantizedEmbedder
+           
+           embedder = QuantizedEmbedder("model.gguf")
+           indexer = FileIndexer(embedder, index_dir=".index")
+    
+    2. Index files in a directory:
+       
+       .. code-block:: python
+       
+           indexer.index_directory(
+               "/home/user/documents",
+               recursive=True  # Include subdirectories
+           )
+    
+    3. Index is automatically saved and loaded:
+       
+       .. code-block:: python
+       
+           # Later, create indexer again - it loads existing index
+           indexer2 = FileIndexer(embedder, index_dir=".index")
+           print(f"Loaded {len(indexer2.file_metadata)} files")
+    
+    4. Incremental updates (only new/modified files):
+       
+       .. code-block:: python
+       
+           # Add more files - only processes changes
+           indexer.index_directory("/home/user/new_docs")
+    
+    5. Clear the index when needed:
+       
+       .. code-block:: python
+       
+           indexer.clear_index()
+    
+    Notes
+    -----
+    - Supports text files: .txt, .md, .py, .js, .java, .cpp, .json, etc.
+    - Supports image files: .jpg, .png, .gif, .bmp, .webp, .tiff
+    - Incremental indexing: Only processes new or modified files
+    - Hash-based change detection using file mtime and size
+    - Embeddings stored in NumPy format for efficiency
+    
+    See Also
+    --------
+    SearchEngine : Search indexed files using queries
+    QuantizedEmbedder : Memory-efficient quantized embedder
+    """
     
     def __init__(self, embedder, index_dir: str = ".file_launcher_index"):
         """

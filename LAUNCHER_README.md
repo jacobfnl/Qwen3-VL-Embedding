@@ -17,7 +17,7 @@ The multimodal file launcher is included in the main package. Install dependenci
 
 ```bash
 # Install dependencies
-uv pip install gradio pynput pillow faiss-cpu tqdm
+uv pip install gradio pynput pillow faiss-cpu tqdm llama-cpp-python
 ```
 
 Or update all dependencies:
@@ -25,14 +25,43 @@ Or update all dependencies:
 bash scripts/setup_environment.sh
 ```
 
+### Download Models
+
+You can use either full-precision or quantized models:
+
+**Full-Precision Models (Multimodal Support):**
+```bash
+huggingface-cli download Qwen/Qwen3-VL-Embedding-2B --local-dir ./models/Qwen3-VL-Embedding-2B
+```
+
+**Quantized GGUF Models (Text-Only, Memory Efficient):**
+```bash
+# Download quantized model (Q4_K_M is recommended for balance of size and quality)
+huggingface-cli download DevQuasar/Qwen.Qwen3-VL-Embedding-2B-GGUF \
+    Qwen3-VL-Embedding-2B-Q4_K_M.gguf \
+    --local-dir ./models/gguf/
+```
+
+**Quantization Options:**
+- `Q4_K_M`: Recommended - good balance (4-bit, ~1.5GB)
+- `Q5_K_M`: Higher quality (5-bit, ~1.8GB)
+- `Q8_0`: Best quality (8-bit, ~2.5GB)
+- See [DevQuasar/Qwen.Qwen3-VL-Embedding-2B-GGUF](https://huggingface.co/DevQuasar/Qwen.Qwen3-VL-Embedding-2B-GGUF) for all options
+
 ## Quick Start
 
 ### 1. Index Your Files
 
 First, index a directory containing files you want to search:
 
+**Using Full-Precision Model (supports images):**
 ```bash
 python launcher.py index /path/to/your/documents --model ./models/Qwen3-VL-Embedding-2B
+```
+
+**Using Quantized GGUF Model (text-only, memory efficient):**
+```bash
+python launcher.py index /path/to/your/documents --model ./models/gguf/Qwen3-VL-Embedding-2B-Q4_K_M.gguf --quantized
 ```
 
 This will:
@@ -42,14 +71,20 @@ This will:
 
 Supported file types:
 - **Text files**: `.txt`, `.md`, `.py`, `.js`, `.java`, `.cpp`, `.json`, `.yaml`, `.html`, `.css`, etc.
-- **Image files**: `.jpg`, `.png`, `.gif`, `.bmp`, `.webp`, `.tiff`
+- **Image files**: `.jpg`, `.png`, `.gif`, `.bmp`, `.webp`, `.tiff` (full-precision model only)
 
 ### 2. Launch the Search UI
 
 Launch the Gradio interface:
 
+**Using Full-Precision Model:**
 ```bash
 python launcher.py launch --model ./models/Qwen3-VL-Embedding-2B
+```
+
+**Using Quantized GGUF Model (recommended for CPU):**
+```bash
+python launcher.py launch --model ./models/gguf/Qwen3-VL-Embedding-2B-Q4_K_M.gguf --quantized --device cpu
 ```
 
 The UI will open in your browser at `http://localhost:7860`
@@ -89,8 +124,9 @@ python launcher.py index <directory> [options]
 Options:
   --no-recursive          Do not index subdirectories
   --index-dir DIR        Custom index directory (default: .file_launcher_index)
-  --model MODEL          Model name or path (default: Qwen/Qwen3-VL-Embedding-2B)
+  --model MODEL          Model name, path, or GGUF file (default: Qwen/Qwen3-VL-Embedding-2B)
   --device DEVICE        Device to use: cuda or cpu (default: auto-detect)
+  --quantized            Use quantized GGUF model (auto-detected for .gguf files)
 ```
 
 ### Launch Command
@@ -105,8 +141,9 @@ Options:
   --port PORT                   Server port (default: 7860)
   --share                       Create a public link
   --keyboard-shortcut SHORTCUT  Enable keyboard shortcut (e.g., "<ctrl>+<alt>+f")
-  --model MODEL                 Model name or path
+  --model MODEL                 Model name, path, or GGUF file
   --device DEVICE               Device to use: cuda or cpu
+  --quantized                   Use quantized GGUF model
 ```
 
 ### Info Command
@@ -188,10 +225,17 @@ The multimodal file launcher consists of several components:
 
 ## Performance Tips
 
-- **GPU Acceleration**: Use CUDA-enabled GPU for faster indexing and search
+- **GPU Acceleration**: Use CUDA-enabled GPU for faster indexing and search with full models
+- **Quantized Models**: Use GGUF quantized models for 4-8x memory reduction with minimal accuracy loss
+  - Best for CPU-only systems or limited GPU memory
+  - Q4_K_M recommended for general use
+  - Text-only support (no images/videos)
 - **Batch Size**: Large directories are processed in batches automatically
 - **Incremental Updates**: Re-indexing only processes new or modified files
-- **Model Selection**: Use 2B model for faster inference, 8B for better accuracy
+- **Model Selection**: 
+  - Use quantized 2B model for fastest CPU inference
+  - Use full 2B model for balanced performance with multimodal support
+  - Use 8B model for best accuracy (requires more GPU memory)
 
 ## Troubleshooting
 
@@ -213,6 +257,52 @@ The multimodal file launcher consists of several components:
 - Ensure GPU is being used if available
 - Consider reducing the number of indexed files
 - Use smaller top_k values (fewer results)
+
+## Quantized Models (GGUF)
+
+The launcher supports quantized GGUF models for memory-efficient CPU inference.
+
+### Benefits of Quantized Models
+
+- **4-8x smaller memory footprint**: ~1.5GB vs ~6GB for 2B model
+- **Faster CPU inference**: Optimized for CPU with no GPU required
+- **Easy deployment**: Single file, no complex dependencies
+- **Minimal accuracy loss**: Q4_K_M maintains >95% quality
+
+### Limitations
+
+- **Text-only**: GGUF models currently support text inputs only
+- **No multimodal**: Cannot process images or videos
+- For image search, use full-precision Qwen3VLEmbedder
+
+### Download and Usage
+
+Download quantized model:
+```bash
+huggingface-cli download DevQuasar/Qwen.Qwen3-VL-Embedding-2B-GGUF \
+    Qwen3-VL-Embedding-2B-Q4_K_M.gguf \
+    --local-dir ./models/gguf/
+```
+
+Use in launcher (automatically detected):
+```bash
+# Index with quantized model
+python launcher.py index /path/to/docs \
+    --model ./models/gguf/Qwen3-VL-Embedding-2B-Q4_K_M.gguf
+
+# Launch with quantized model  
+python launcher.py launch \
+    --model ./models/gguf/Qwen3-VL-Embedding-2B-Q4_K_M.gguf \
+    --device cpu
+```
+
+### Quantization Levels
+
+| Quantization | Size | Quality | Use Case |
+|-------------|------|---------|----------|
+| Q4_K_M | ~1.5GB | 95% | **Recommended** - Best balance |
+| Q5_K_M | ~1.8GB | 97% | Higher quality, slightly larger |
+| Q8_0 | ~2.5GB | 99% | Near full quality |
 
 ## Limitations (Current MVP)
 
