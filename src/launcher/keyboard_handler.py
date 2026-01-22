@@ -98,29 +98,31 @@ class UILauncher:
         self.ui_instance = ui_instance
         self.ui_process = None
         self.is_ui_running = False
+        self._ui_lock = threading.Lock()
     
     def launch_ui(self):
         """Launch the UI in a separate process."""
-        if self.is_ui_running:
-            logger.info("UI is already running. Bringing to foreground...")
-            # On Linux, you might want to focus the window here
-            return
-        
-        logger.info("Launching UI...")
-        try:
-            # Launch UI in the same process but in a new thread
-            # This is simpler than subprocess for Gradio
-            def run_ui():
-                self.is_ui_running = True
-                self.ui_instance.launch(share=False)
+        with self._ui_lock:
+            if self.is_ui_running:
+                logger.info("UI is already running. Bringing to foreground...")
+                # On Linux, you might want to focus the window here
+                return
+            
+            logger.info("Launching UI...")
+            try:
+                # Launch UI in the same process but in a new thread
+                # This is simpler than subprocess for Gradio
+                def run_ui():
+                    self.is_ui_running = True
+                    self.ui_instance.launch(share=False)
+                    self.is_ui_running = False
+                
+                ui_thread = threading.Thread(target=run_ui, daemon=True)
+                ui_thread.start()
+                
+            except Exception as e:
+                logger.error(f"Error launching UI: {e}")
                 self.is_ui_running = False
-            
-            ui_thread = threading.Thread(target=run_ui, daemon=True)
-            ui_thread.start()
-            
-        except Exception as e:
-            logger.error(f"Error launching UI: {e}")
-            self.is_ui_running = False
     
     def setup_keyboard_shortcut(self, shortcut: str = "<ctrl>+<alt>+f"):
         """

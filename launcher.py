@@ -221,8 +221,18 @@ def command_launch(args):
 
 def command_clear(args):
     """Handle the clear command."""
-    # Don't need to load model for clearing
-    indexer = FileIndexer(None, args.index_dir)
+    # Create a minimal indexer without embedder for clearing
+    class NoOpIndexer(FileIndexer):
+        def __init__(self, index_dir):
+            self.index_dir = Path(index_dir)
+            self.index_dir.mkdir(parents=True, exist_ok=True)
+            self.index_file = self.index_dir / "file_index.json"
+            self.embeddings_file = self.index_dir / "embeddings.npy"
+            self.file_metadata = []
+            self.embeddings = None
+            self.load_index()
+    
+    indexer = NoOpIndexer(args.index_dir)
     
     confirm = input("Are you sure you want to clear the index? (yes/no): ")
     if confirm.lower() in ['yes', 'y']:
@@ -234,8 +244,18 @@ def command_clear(args):
 
 def command_info(args):
     """Handle the info command."""
-    # Don't need to load model for info
-    indexer = FileIndexer(None, args.index_dir)
+    # Create a minimal indexer without embedder for info
+    class NoOpIndexer(FileIndexer):
+        def __init__(self, index_dir):
+            self.index_dir = Path(index_dir)
+            self.index_dir.mkdir(parents=True, exist_ok=True)
+            self.index_file = self.index_dir / "file_index.json"
+            self.embeddings_file = self.index_dir / "embeddings.npy"
+            self.file_metadata = []
+            self.embeddings = None
+            self.load_index()
+    
+    indexer = NoOpIndexer(args.index_dir)
     
     if not indexer.file_metadata:
         logger.info("Index is empty")

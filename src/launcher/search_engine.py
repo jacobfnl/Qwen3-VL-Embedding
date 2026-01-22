@@ -5,7 +5,7 @@ This module provides semantic search functionality for finding files based on
 multimodal queries, using cosine similarity between query and indexed embeddings.
 """
 import numpy as np
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Tuple
 from pathlib import Path
 from PIL import Image
 import logging
@@ -131,7 +131,7 @@ class SearchEngine:
         self.embedder = embedder
         self.indexer = indexer
     
-    def _compute_similarity(self, query_embedding: np.ndarray, top_k: int = 10) -> List[tuple]:
+    def _compute_similarity(self, query_embedding: np.ndarray, top_k: int = 10) -> List[Tuple[int, float]]:
         """
         Compute cosine similarity between query and all indexed files.
         
@@ -227,7 +227,9 @@ class SearchEngine:
             query_input = {"image": str(image_input)}
         else:
             # PIL Image - save temporarily
-            temp_path = self.indexer.index_dir / "temp_query.jpg"
+            import uuid
+            temp_filename = f"temp_query_{uuid.uuid4().hex[:8]}.jpg"
+            temp_path = self.indexer.index_dir / temp_filename
             image_input.save(temp_path)
             query_input = {"image": str(temp_path)}
         
@@ -262,10 +264,18 @@ class SearchEngine:
             logger.error(f"Error during search: {e}")
             return []
         finally:
-            # Clean up temp file if created
-            temp_path = self.indexer.index_dir / "temp_query.jpg"
-            if temp_path.exists():
-                temp_path.unlink()
+            # Clean up temp file if created (with unique filename)
+            if isinstance(image_input, (str, Path)):
+                pass  # Don't delete user's file
+            else:
+                # Was a PIL image - clean up our temp file
+                temp_pattern = self.indexer.index_dir / "temp_query_*.jpg"
+                import glob
+                for temp_file in glob.glob(str(temp_pattern)):
+                    try:
+                        Path(temp_file).unlink()
+                    except Exception:
+                        pass  # Ignore cleanup errors
     
     def search(self, query: Union[str, Path, Image.Image], instruction: Optional[str] = None, top_k: int = 10) -> List[Dict[str, Any]]:
         """

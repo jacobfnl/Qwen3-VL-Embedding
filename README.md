@@ -25,6 +25,7 @@
 - [Model Architecture](#model-architecture)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Multimodal File Launcher](#multimodal-file-launcher)
 - [Examples](#examples)
 - [Model Performance](#model-performance)
 - [Citation](#citation)
@@ -286,6 +287,64 @@ Qwen3VLEmbedder(
     attn_implementation="flash_attention_2"
 )
 ```
+
+---
+
+## Multimodal File Launcher
+
+🎯 **NEW**: A keyboard-launchable file search tool using Qwen3-VL embeddings!
+
+Search for files by describing their content in natural language or providing a reference image, rather than relying on filenames or paths.
+
+### Key Features
+
+- **🔍 Semantic Search**: Find files using natural language descriptions
+- **⌨️ Keyboard Shortcuts**: Global keyboard shortcut for instant access
+- **🖼️ Image Search**: Find similar images or related content
+- **⚡ Quantized Models**: Memory-efficient GGUF models for CPU inference
+- **📁 Offline**: All indexing and search happens locally
+
+### Quick Start
+
+1. **Download a quantized model** (recommended for CPU):
+   ```bash
+   huggingface-cli download DevQuasar/Qwen.Qwen3-VL-Embedding-2B-GGUF \
+       Qwen3-VL-Embedding-2B-Q4_K_M.gguf \
+       --local-dir ./models/gguf/
+   ```
+
+2. **Index your files**:
+   ```bash
+   python launcher.py index ~/Documents \
+       --model ./models/gguf/Qwen3-VL-Embedding-2B-Q4_K_M.gguf
+   ```
+
+3. **Launch the search UI**:
+   ```bash
+   python launcher.py launch \
+       --model ./models/gguf/Qwen3-VL-Embedding-2B-Q4_K_M.gguf
+   ```
+
+4. **Search** using natural language:
+   - "Python code for machine learning"
+   - "Database configuration file"
+   - "Meeting notes from last week"
+
+### Try the Demo
+
+Run the included demo to see it in action:
+```bash
+python demo_launcher.py
+```
+
+### Full Documentation
+
+See [LAUNCHER_README.md](LAUNCHER_README.md) for:
+- Complete installation instructions
+- Keyboard shortcut setup
+- Quantized vs full-precision models
+- Advanced usage and examples
+- Performance optimization tips
 
 ---
 

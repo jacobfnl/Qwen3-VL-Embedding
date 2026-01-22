@@ -263,7 +263,10 @@ class FileIndexer:
         logger.info(f"Found {len(files_to_index)} supported files to index")
         
         # Check which files need updating
-        existing_hashes = {item['path']: item['hash'] for item in self.file_metadata}
+        existing_hashes = {}
+        if self.file_metadata:
+            existing_hashes = {item['path']: item['hash'] for item in self.file_metadata}
+        
         files_needing_update = []
         
         for file_path in files_to_index:

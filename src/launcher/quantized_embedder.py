@@ -270,8 +270,8 @@ class QuantizedEmbedder:
                 embedding = result['data'][0]['embedding']
                 embeddings.append(embedding)
             except Exception as e:
-                logger.error(f"Error creating embedding: {e}")
-                # Add zero embedding as fallback
-                embeddings.append([0.0] * self.embed_dim)
+                logger.error(f"Error creating embedding for text '{text[:50]}...': {e}")
+                # Skip failed embeddings rather than using zero vectors
+                continue
         
         return np.array(embeddings, dtype=np.float32)

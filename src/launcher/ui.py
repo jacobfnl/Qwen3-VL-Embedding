@@ -23,7 +23,28 @@ class LauncherUI:
         self.search_engine = search_engine
     
     def _format_results(self, results: List[Dict[str, Any]]) -> str:
-        """Format search results as HTML."""
+        """
+        Format search results as HTML.
+        
+        Parameters
+        ----------
+        results : list of dict
+            List of search result dictionaries containing file metadata and scores.
+        
+        Returns
+        -------
+        str
+            HTML-formatted string displaying the results with styling and previews.
+        
+        Examples
+        --------
+        >>> results = [{'name': 'test.py', 'similarity': 0.85, 'type': 'text'}]
+        >>> html = ui._format_results(results)
+        
+        How to Use
+        ----------
+        This is an internal method used by search handlers. Users don't call it directly.
+        """
         if not results:
             return "<p>No results found.</p>"
         
