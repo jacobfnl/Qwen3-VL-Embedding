@@ -16,3 +16,7 @@ wheels/
 !/data/evaluation/mmeb_v2/download_data.sh
 tmp*
 .ipynb_checkpoints/
+
+# File launcher index
+.file_launcher_index/
+*_launcher_index/
