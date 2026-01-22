@@ -20,3 +20,4 @@ tmp*
 # File launcher index
 .file_launcher_index/
 *_launcher_index/
+demo_launcher_index/

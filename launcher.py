@@ -5,14 +5,24 @@ Main entry point for the multimodal file launcher.
 import argparse
 import logging
 import sys
-import torch
 from pathlib import Path
 
-from src.models.qwen3_vl_embedding import Qwen3VLEmbedder
+# Conditional imports
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    
+try:
+    from src.models.qwen3_vl_embedding import Qwen3VLEmbedder
+    EMBEDDER_AVAILABLE = True
+except ImportError:
+    EMBEDDER_AVAILABLE = False
+
 from src.launcher.indexer import FileIndexer
 from src.launcher.search_engine import SearchEngine
 from src.launcher.ui import LauncherUI
-from src.launcher.keyboard_handler import UILauncher
 
 # Setup logging
 logging.basicConfig(
@@ -56,7 +66,7 @@ def parse_args():
     # Model arguments (common)
     parser.add_argument('--model', type=str, default='Qwen/Qwen3-VL-Embedding-2B',
                        help='Model name, path, or GGUF file path')
-    parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu',
+    parser.add_argument('--device', type=str, default='cuda' if TORCH_AVAILABLE and torch.cuda.is_available() else 'cpu',
                        help='Device to run on (cuda/cpu)')
     parser.add_argument('--quantized', action='store_true',
                        help='Use quantized GGUF model (auto-detected for .gguf files)')
@@ -136,6 +146,12 @@ def load_embedder(model_name_or_path: str, device: str, use_quantized: bool = Fa
             logger.error("Make sure llama-cpp-python is installed: pip install llama-cpp-python")
             sys.exit(1)
     else:
+        if not EMBEDDER_AVAILABLE or not TORCH_AVAILABLE:
+            logger.error("Full-precision embedder requires torch and transformers.")
+            logger.error("Install with: pip install torch transformers")
+            logger.error("Or use quantized GGUF model with --quantized flag")
+            sys.exit(1)
+            
         logger.info(f"Loading full-precision embedder model: {model_name_or_path}")
         
         try:
@@ -175,21 +191,29 @@ def command_launch(args):
     
     if args.keyboard_shortcut:
         logger.info(f"Setting up keyboard shortcut: {args.keyboard_shortcut}")
-        launcher = UILauncher(ui)
-        handler = launcher.setup_keyboard_shortcut(args.keyboard_shortcut)
-        
-        # Launch UI immediately
-        launcher.launch_ui()
-        
-        # Start keyboard listener
-        handler.start()
-        
-        logger.info("Press Ctrl+C to exit")
         try:
-            handler.run()
-        except KeyboardInterrupt:
-            logger.info("Shutting down...")
-            handler.stop()
+            from src.launcher.keyboard_handler import UILauncher
+            
+            launcher = UILauncher(ui)
+            handler = launcher.setup_keyboard_shortcut(args.keyboard_shortcut)
+            
+            # Launch UI immediately
+            launcher.launch_ui()
+            
+            # Start keyboard listener
+            handler.start()
+            
+            logger.info("Press Ctrl+C to exit")
+            try:
+                handler.run()
+            except KeyboardInterrupt:
+                logger.info("Shutting down...")
+                handler.stop()
+        except ImportError as e:
+            logger.error(f"Keyboard shortcut not available: {e}")
+            logger.error("This may require X server or special permissions.")
+            logger.info("Launching UI without keyboard shortcut...")
+            ui.launch(share=args.share, server_port=args.port)
     else:
         # Just launch the UI
         ui.launch(share=args.share, server_port=args.port)
