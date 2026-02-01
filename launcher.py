@@ -50,10 +50,11 @@ def parse_args():
     # Launch command
     launch_parser = subparsers.add_parser('launch', help='Launch the search UI')
     launch_parser.add_argument('--index-dir', type=str, default='.file_launcher_index', help='Index directory')
+    launch_parser.add_argument('--is-lan', action='store_true', help='Make the server LAN accessible i.e., ip==0.0.0.0')
     launch_parser.add_argument('--port', type=int, default=7860, help='Server port')
     launch_parser.add_argument('--share', action='store_true', help='Create a public link')
-    launch_parser.add_argument('--keyboard-shortcut', type=str, default=None, 
-                              help='Enable keyboard shortcut (e.g., "<ctrl>+<alt>+f")')
+    launch_parser.add_argument('--keyboard-shortcut', type=str, default=None,
+                               help='Enable keyboard shortcut (e.g., "<ctrl>+<alt>+f")')
     
     # Clear command
     clear_parser = subparsers.add_parser('clear', help='Clear the index')
@@ -188,6 +189,7 @@ def command_launch(args):
     
     search_engine = SearchEngine(embedder, indexer)
     ui = LauncherUI(search_engine)
+    server_name = '0.0.0.0' if args.is_lan else "127.0.0.1"
     
     if args.keyboard_shortcut:
         logger.info(f"Setting up keyboard shortcut: {args.keyboard_shortcut}")
@@ -213,10 +215,10 @@ def command_launch(args):
             logger.error(f"Keyboard shortcut not available: {e}")
             logger.error("This may require X server or special permissions.")
             logger.info("Launching UI without keyboard shortcut...")
-            ui.launch(share=args.share, server_port=args.port)
+            ui.launch(share=args.share, server_port=args.port, server_name=server_name)
     else:
         # Just launch the UI
-        ui.launch(share=args.share, server_port=args.port)
+        ui.launch(share=args.share, server_port=args.port, server_name=server_name)
 
 
 def command_clear(args):
