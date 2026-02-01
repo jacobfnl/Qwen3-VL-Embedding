@@ -11,7 +11,7 @@ import io
 
 logger = logging.getLogger(__name__)
 
-def image_to_base64(file_path: str, max_size: tuple = (1024, 1024)) -> Optional[str]:
+def _image_to_base64(file_path: str, max_size: tuple = (1024, 1024)) -> Optional[str]:
     """
     Convert an image file to a base64 data URI.
 
@@ -119,7 +119,7 @@ class LauncherUI:
                If results list >20, we should consider lazily loading images.
             """
             if file_type == "image":
-                img_data_uri = image_to_base64(file_path)
+                img_data_uri = _image_to_base64(file_path)
                 if img_data_uri:
                     modal_id = f"modal_{i}"
                     html += f"""
