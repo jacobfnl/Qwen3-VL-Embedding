@@ -65,7 +65,7 @@ class LauncherUI:
                 color = "#dc3545"  # red
             
             html += f"""
-            <div style='margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;'>
+            <div style='margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;'>
                 <div style='display: flex; justify-content: space-between; align-items: center;'>
                     <h3 style='margin: 0 0 10px 0;'>{i}. {file_name}</h3>
                     <span style='background-color: {color}; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;'>
@@ -79,7 +79,7 @@ class LauncherUI:
             # Add preview for text files
             if file_type == "text" and "preview" in result:
                 preview = result["preview"].replace("\n", "<br>")
-                html += f"<p style='margin: 10px 0; padding: 10px; background-color: #fff; border-left: 3px solid #007bff;'>{preview}</p>"
+                html += f"<p style='margin: 10px 0; padding: 10px; border-left: 3px solid #007bff;'>{preview}</p>"
             
             # Add image preview for image files
             if file_type == "image":
