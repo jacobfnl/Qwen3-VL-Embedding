@@ -11,6 +11,35 @@ import io
 
 logger = logging.getLogger(__name__)
 
+def image_to_base64(file_path: str, max_size: tuple = (1024, 1024)) -> Optional[str]:
+    """
+    Convert an image file to a base64 data URI.
+
+    Args:
+        file_path: Path to the image file
+        max_size: Maximum (width, height) for the thumbnail
+
+    Returns:
+        Base64 data URI string or None if failed
+    """
+    try:
+        with Image.open(file_path) as img:
+            # Convert to RGB if necessary (for RGBA, P mode images)
+            if img.mode in ('RGBA', 'P'):
+                img = img.convert('RGB')
+            # Create thumbnail to reduce size
+            img.thumbnail(max_size, Image.Resampling.LANCZOS)
+            # Save to bytes buffer
+            buffer = io.BytesIO()
+            img.save(buffer, format='JPEG', quality=70)
+            buffer.seek(0)
+            # Encode to base64
+            img_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+            return f"data:image/jpeg;base64,{img_base64}"
+    except Exception as e:
+        logger.warning(f"Failed to convert image to base64: {file_path}, error: {e}")
+        return None
+
 
 class LauncherUI:
     """Gradio interface for the multimodal file launcher."""
@@ -24,36 +53,8 @@ class LauncherUI:
         """
         self.search_engine = search_engine
 
-    def _image_to_base64(self, file_path: str, max_size: tuple = (1024, 1024)) -> Optional[str]:
-        """
-        Convert an image file to a base64 data URI.
-
-        Args:
-            file_path: Path to the image file
-            max_size: Maximum (width, height) for the thumbnail
-
-        Returns:
-            Base64 data URI string or None if failed
-        """
-        try:
-            with Image.open(file_path) as img:
-                # Convert to RGB if necessary (for RGBA, P mode images)
-                if img.mode in ('RGBA', 'P'):
-                    img = img.convert('RGB')
-                # Create thumbnail to reduce size
-                img.thumbnail(max_size, Image.Resampling.LANCZOS)
-                # Save to bytes buffer
-                buffer = io.BytesIO()
-                img.save(buffer, format='JPEG', quality=70)
-                buffer.seek(0)
-                # Encode to base64
-                img_base64 = base64.b64encode(buffer.read()).decode('utf-8')
-                return f"data:image/jpeg;base64,{img_base64}"
-        except Exception as e:
-            logger.warning(f"Failed to convert image to base64: {file_path}, error: {e}")
-            return None
-
-    def _format_results(self, results: List[Dict[str, Any]]) -> str:
+    @staticmethod
+    def _format_results(results: List[Dict[str, Any]]) -> str:
         """
         Format search results as HTML.
         
@@ -114,7 +115,7 @@ class LauncherUI:
             
             # Add image preview for image files
             if file_type == "image":
-                img_data_uri = self._image_to_base64(file_path)
+                img_data_uri = image_to_base64(file_path)
                 if img_data_uri:
                     modal_id = f"modal_{i}"
                     html += f"""
@@ -136,7 +137,7 @@ class LauncherUI:
         
         html += "</div>"
         return html
-    
+
     def _search_text(self, query_text: str, instruction: str, top_k: int) -> str:
         """Handler for text search."""
         if not query_text.strip():
@@ -148,7 +149,7 @@ class LauncherUI:
         results = self.search_engine.search_text(query_text, instruction, int(top_k))
         
         return self._format_results(results)
-    
+
     def _search_image(self, image_input, instruction: str, top_k: int) -> str:
         """Handler for image search."""
         if image_input is None:
@@ -160,7 +161,7 @@ class LauncherUI:
         results = self.search_engine.search_image(image_input, instruction, int(top_k))
         
         return self._format_results(results)
-    
+
     def create_interface(self) -> gr.Blocks:
         """Create and return the Gradio interface."""
         with gr.Blocks(title="Multimodal File Launcher", theme=gr.themes.Soft()) as interface:
@@ -310,7 +311,7 @@ class LauncherUI:
             """)
         
         return interface
-    
+
     def launch(self, share: bool = False, server_name: str = "127.0.0.1", server_port: int = 7860):
         """
         Launch the Gradio interface.
