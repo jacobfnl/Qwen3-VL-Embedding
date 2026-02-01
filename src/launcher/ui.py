@@ -114,6 +114,10 @@ class LauncherUI:
                 html += f"<p style='margin: 10px 0; padding: 10px; border-left: 3px solid #007bff;'>{preview}</p>"
             
             # Add image preview for image files
+            """
+               Safety Tip: this is fine for a limited number of results, we embed images as base64 data URIs for LAN use. 
+               If results list >20, we should consider lazily loading images.
+            """
             if file_type == "image":
                 img_data_uri = image_to_base64(file_path)
                 if img_data_uri:
