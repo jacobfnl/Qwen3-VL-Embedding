@@ -6,6 +6,8 @@ from pathlib import Path
 from PIL import Image
 from typing import List, Dict, Any, Optional
 import logging
+import base64
+import io
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +23,36 @@ class LauncherUI:
             search_engine: SearchEngine instance
         """
         self.search_engine = search_engine
-    
+
+    def _image_to_base64(self, file_path: str, max_size: tuple = (1024, 1024)) -> Optional[str]:
+        """
+        Convert an image file to a base64 data URI.
+
+        Args:
+            file_path: Path to the image file
+            max_size: Maximum (width, height) for the thumbnail
+
+        Returns:
+            Base64 data URI string or None if failed
+        """
+        try:
+            with Image.open(file_path) as img:
+                # Convert to RGB if necessary (for RGBA, P mode images)
+                if img.mode in ('RGBA', 'P'):
+                    img = img.convert('RGB')
+                # Create thumbnail to reduce size
+                img.thumbnail(max_size, Image.Resampling.LANCZOS)
+                # Save to bytes buffer
+                buffer = io.BytesIO()
+                img.save(buffer, format='JPEG', quality=70)
+                buffer.seek(0)
+                # Encode to base64
+                img_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+                return f"data:image/jpeg;base64,{img_base64}"
+        except Exception as e:
+            logger.warning(f"Failed to convert image to base64: {file_path}, error: {e}")
+            return None
+
     def _format_results(self, results: List[Dict[str, Any]]) -> str:
         """
         Format search results as HTML.
@@ -83,8 +114,24 @@ class LauncherUI:
             
             # Add image preview for image files
             if file_type == "image":
-                html += f"<img src='file={file_path}' style='max-width: 300px; max-height: 200px; margin-top: 10px; border-radius: 3px;' />"
-            
+                img_data_uri = self._image_to_base64(file_path)
+                if img_data_uri:
+                    modal_id = f"modal_{i}"
+                    html += f"""
+                    <input type="checkbox" id="{modal_id}" style="display:none;" class="modal-toggle" />
+                    <label for="{modal_id}">
+                        <img src='{img_data_uri}' class='clickable-image' style='max-width: 300px; max-height: 200px; margin-top: 10px; border-radius: 3px; cursor: pointer;' />
+                    </label>
+                    <label for="{modal_id}" class="modal-overlay">
+                        <div class="modal-content-wrapper">
+                            <span class="modal-close-btn">&times;</span>
+                            <img src='{img_data_uri}' class="modal-full-image" />
+                        </div>
+                    </label>
+                    """
+                else:
+                    html += "<p style='color: #999; font-style: italic;'>Image preview not available</p>"
+
             html += "</div>"
         
         html += "</div>"
@@ -117,6 +164,60 @@ class LauncherUI:
     def create_interface(self) -> gr.Blocks:
         """Create and return the Gradio interface."""
         with gr.Blocks(title="Multimodal File Launcher", theme=gr.themes.Soft()) as interface:
+            gr.HTML("""
+            <style>
+                .clickable-image {
+                    cursor: zoom-in;
+                    transition: transform 0.2s, box-shadow 0.2s;
+                }
+                .clickable-image:hover {
+                    transform: scale(1.02);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                }
+                .modal-overlay {
+                    display: none;
+                    position: fixed;
+                    z-index: 9999;
+                    left: 0;
+                    top: 0;
+                    width: 100%;
+                    height: 100%;
+                    background-color: rgba(0, 0, 0, 0.85);
+                    justify-content: center;
+                    align-items: center;
+                }
+                .modal-content-wrapper {
+                    position: relative;
+                    max-width: 90%;
+                    max-height: 90%;
+                }
+                .modal-full-image {
+                    max-width: 90vw;
+                    max-height: 90vh;
+                    object-fit: contain;
+                    border-radius: 5px;
+                    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+                }
+                .modal-close-btn {
+                    position: absolute;
+                    top: -40px;
+                    right: 0px;
+                    color: white;
+                    font-size: 40px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    z-index: 10000;
+                    line-height: 1;
+                }
+                .modal-close-btn:hover {
+                    color: #ccc;
+                }
+                .modal-toggle:checked + label + .modal-overlay {
+                    display: flex;
+                }
+            </style>
+            """)
+
             gr.Markdown("""
             # 🔍 Multimodal File Launcher
             
@@ -200,9 +301,7 @@ class LauncherUI:
                         inputs=[image_query, image_instruction, image_top_k],
                         outputs=image_results
                     )
-            
             gr.Markdown("""
-            ---
             **Tips:**
             - Use natural language to describe what you're looking for
             - For text search, describe the content, purpose, or keywords
