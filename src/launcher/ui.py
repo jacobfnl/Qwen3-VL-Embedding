@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional
 import logging
 import base64
 import io
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +122,7 @@ class LauncherUI:
             if file_type == "image":
                 img_data_uri = _image_to_base64(file_path)
                 if img_data_uri:
-                    modal_id = f"modal_{i}"
+                    modal_id = f"modal_{str(uuid4())}"
                     html += f"""
                     <input type="checkbox" id="{modal_id}" style="display:none;" class="modal-toggle" />
                     <label for="{modal_id}">
